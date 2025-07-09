@@ -1,0 +1,1488 @@
+---
+title: "Diagramas de Control para Variables (Ejercicios Resueltos)"
+author: "Marialex Moreno, Luis Ríos, Valeria Valerio"
+author-title: "AUTORES:"
+format: html
+editor: visual
+title-block-banner: true
+block-banner-color: "#FFDDFF"
+html_align: justify
+css: styles.css
+number-sections: true
+number-depth: 4
+highlight-style: github
+code-fold: true
+code-copy: true
+code-block-bg: true
+code-block-border-left: "#31BAE9"
+code-block-border-left-size: 3px
+callout-border-width: 1px
+code-overflow: scroll
+code-summary: "Código"
+html-math-method: mathjax
+toc: true
+toc-depth: 4
+toc-location: right
+toc-title: Contenido
+theme:
+  - cosmo
+code-line-numbers: true
+
+execute:
+  warning: false
+  message: false
+  error: false
+  echo: fenced
+  cache: true
+  freeze: auto 
+
+lang: es
+
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+#| label: carga-paquetes
+#| include: false
+#| echo: false
+if (!requireNamespace("pacman", quietly = TRUE)) install.packages("pacman")
+library(pacman)
+pacman::p_load(
+  ggplot2, ggfortify, DT, reshape2, knitr, tidyverse, ggQC,
+  pammtools, latex2exp, data.table, reactable, htmlwidgets,
+  htmltools, highcharter, tinytex, qcc, kableExtra
+)
+```
+
+
+```{r}
+#| label: funciones-creadas
+#| include: false
+#| echo: false
+
+# Función para ajustar la opacidad de relleno usando CSS
+fillOpacity <- function(., alpha = 0.5) {
+  css <- sprintf("<style> .js-fill { fill-opacity: %s !important; } </style>", alpha)
+  prependContent(., HTML(css))
+}
+
+# Función para dar formato a un número
+formato <- function(x, digits = 4) {
+  if (!is.numeric(x)) stop("¡La entrada debe ser numérica!")
+  format(
+    round(x, digits = digits),
+    mode = "double",
+    big.mark = ".",
+    decimal.mark = ","
+  )
+}
+```
+
+```{r setup, include=FALSE}
+# Configuración global para los chunks de R en Quarto
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(knitr)
+library(kableExtra)
+library(qcc) # Asegúrate de que este paquete esté instalado (install.packages("qcc"))
+```
+
+# Prefacio
+
+Este documento es un solucionario de ejercicios prácticos sobre diagramas o cartas de control para variables, una herramienta fundamental en el Control Estadístico de la Calidad ($CEC$). Los ejercicios presentados han sido seleccionados y resueltos con el objetivo de reforzar los conceptos teóricos y metodológicos vistos en la materia de Control Estadístico de la Calidad, impartida por el Profesor Oswaldo Bello en la Licenciatura en Estadística.
+
+La base principal para la selección y resolución de estos ejercicios ha sido el libro "Control Estadístico de la Calidad y Seis Sigma, 6ta Edición". Adicionalmente, este trabajo se ha nutrido de la valiosa guía proporcionada por el material digital desarrollado por el Profesor Bello.
+
+Aquí se abordan la construcción e interpretación de los diagramas $\bar{X}$ y $R$, $\bar{X}$ y $S$ (para muestras variables y constantes), y el diagrama para muestras individuales ($I\text{-}MR$)). Este trabajo, generado con $R$ y $Quarto$, aspira a ser un recurso claro y útil para la comprensión y aplicación de estas esenciales herramientas estadísticas.
+
+# Diagrama de Control $\bar{x}$ y $R$
+
+En una empresa del ramo metalmecánico se fabrican punterías para motores de automóviles. Una puntería debe tener un diámetro exterior de 20 000 micras (μm); donde 1 
+μm es igual a 0.000001 m, con una tolerancia de ±25 μm. 
+De esta manera, si a las mediciones del diámetro se les resta el valor nominal deseado, entonces las especifi caciones 
+serán EI = −25 y ES = 25.
+Para evaluar la estabilidad del proceso se realiza un estudio inicial, donde es usual obtener por lo menos de 20 
+a 25 subgrupos (muestras) de tamaño pequeño (entre 5 y 
+10 por lo general). Además, estos subgrupos deben estar 
+espaciados en un periodo sufi cientemente amplio para que 
+se capten diferentes cambios en el proceso (turnos, lotes, 
+etc.). En el caso de las punterías, cada hora se mide el diá-
+metro de cinco de éstas y en la tabla que se muestra debajo se presentan los datos de cuatro turnos (dos días). Para evaluar la estabilidad 
+de la tendencia central se analizará la variación de la columna de medias de la tabla a continuación mediante la carta $\bar{x}$
+, y de la 
+misma manera mediante la carta $R$ se analizará la columna 
+de rangos para investigar la estabilidad de la variación del 
+diámetro de las punterías. Sin embargo, primero se necesita 
+calcular los límites de control.
+
+```{r}
+#| label: tabla-disso
+#| echo: false
+#| message: false
+#| warning: false
+#| results: asis
+
+library(knitr)
+library(kableExtra)
+
+# Datos
+datos <- data.frame(
+  Muestra = 1:30,
+  M1 = c(-21,4,-13,15,0,1,-4,3,7,7,15,5,1,-13,2,4,6,-22,-9,0,7,10,-14,-19,10,21,22,-1,0,2),
+  M2 = c(-5,3,7,7,13,4,0,-13,0,3,1,-1,-2,1,-4,8,8,1,10,-3,5,7,28,2,5,-16,-14,1,5,-19),
+  M3 = c(21,7,-11,26,6,9,-5,3,5,2,2,2,-4,-6,14,19,2,-2,-9,-13,-1,-9,10,7,14,-20,-5,4,6,12),
+  M4 = c(3,22,-7,7,-20,9,11,-13,11,-23,1,-16,-16,11,-6,9,9,2,-10,14,-1,-14,0,12,-4,-3,-7,-4,-19,-1),
+  M5 = c(-12,-18,7,-4,6,-19,2,9,4,-4,5,10,10,4,-2,-4,-4,-7,-3,-3,-1,-33,-2,-9,4,10,5,7,-7,0),
+  Media = c(-2.8,3.6,-3.4,10.2,1,1.4,0.8,-2.2,5.4,-1,5.8,0,-2.2,-0.6,0.8,6,4.2,-5.6,-3.8,-1,2.2,-7.6,4.4,-1.4,5.8,-1.6,0.2,3.4,-3,-1.2),
+  Rango = c(42,40,20,30,33,19,16,22,11,40,20,26,26,24,20,20,13,24,20,27,8,43,42,31,18,41,36,21,25,31)
+)
+
+# Crear tabla continua con "totales" al pie como fórmulas
+kable(datos, align = 'c', caption = "TABLA 1: Datos para diámetro de punterías") %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  add_header_above(c(" " = 1, "Mediciones del diámetro" = 5, "Resultados" = 2)) %>%
+  footnote(
+    general = "$$ \\bar{k} = 0{,}59 \\quad \\bar{R} = 26{,}3 $$",
+    general_title = "Totales:",
+    escape = FALSE
+  )
+```
+
+
+$Nota:$
+**En la tabla del apéndice se muestran todos los valores de las constantes a las que se hace referencia en este ejercicio y en todos los siguientes.**
+
+
+
+En el caso del diámetro de las punterías se está haciendo un estudio inicial; por ello, si tomamos en cuenta que $\bar{X}$ = $0{,}59$, $\bar{R}$ = $26{,}3$, y para $n = 5$, $A_2$ = $0{,}577$; entonces los límites de control para el diagrama $\bar{x}$:
+
+$$
+\begin{aligned}
+\text{LCS} &= \bar{X} + A_2 \cdot \bar{R} = 0{,}59 + (0{,}577)(26{,}3) = 15{,}77 \\
+\text{Línea central} &= \bar{X} = 0{,}59 \\
+\text{LCI} &= \bar{X} - A_2 \cdot \bar{R} = 0{,}59 - (0{,}577)(26{,}3) = -14{,}59
+\end{aligned}
+$$
+
+Se tiene que los límites de control para la carta $R$ están dados por:
+
+$$
+\begin{aligned}
+\text{LCI} &= D_3 \bar{R} = 0 (0{,}0234) = 0 \\
+\text{LC} &= \bar{R} = 0{,}0234 \\
+\text{LCS} &= D_4 \bar{R} = 2{,}1145 (0{,}0234) = 0{,}0495
+\end{aligned}
+$$
+
+```{r}
+#| label: preparar-datos-graficos
+#| echo: false
+#| warning: false
+#| message: false
+
+library(highcharter)
+library(dplyr)
+
+# Asumimos que 'datos' ya está definido
+medias <- datos$Media
+rangos <- datos$Rango
+muestras <- datos$Muestra
+
+# Límites para gráfico de X̄
+lc_x <- 0.59
+lcs_x <- 15.77
+lci_x <- -14.59
+
+# Límites para gráfico de R
+lc_r <- 26.3
+lcs_r <- 55.6
+lci_r <- 0
+```
+
+```{r}
+#| label: grafico-x-barra
+#| echo: false
+#| warning: false
+#| message: false
+
+highchart() %>%
+  hc_title(text = "Diagrama de Control X̄") %>%
+  hc_xAxis(categories = muestras, title = list(text = "Muestra")) %>%
+  hc_yAxis(title = list(text = "Media")) %>%
+  hc_add_series(name = "Medias", data = medias, type = "line", color = "#0073C2FF") %>%
+  hc_add_series(name = "LCS", data = rep(lcs_x, length(muestras)), type = "line", color = "#FF0000", dashStyle = "ShortDash") %>%
+  hc_add_series(name = "Línea Central", data = rep(lc_x, length(muestras)), type = "line", color = "#000000", dashStyle = "ShortDot") %>%
+  hc_add_series(name = "LCI", data = rep(lci_x, length(muestras)), type = "line", color = "#FF0000", dashStyle = "ShortDash") %>%
+  hc_tooltip(shared = TRUE)
+```
+
+En ésta se observa que no hay puntos fuera de los límites y además el comportamiento de 
+los puntos no sigue ningún patrón especial (como lo veremos más adelante). Por lo tanto, el 
+proceso responsable del diámetro de las punterías ha estado funcionando de manera estable 
+en cuanto a tendencia central. Entonces, la variación que se observa en las medias es inherente al propio proceso y se debe a muchas pequeñas causas que actúan en común; no ocurrió 
+ningún cambio ocasionado por alguna situación o causa especial.
+
+```{r}
+#| label: grafico-r
+#| echo: false
+#| warning: false
+#| message: false
+
+highchart() %>%
+  hc_title(text = "Diagrama de Control R") %>%
+  hc_xAxis(categories = muestras, title = list(text = "Muestra")) %>%
+  hc_yAxis(title = list(text = "Rango")) %>%
+  hc_add_series(name = "Rangos", data = rangos, type = "line", color = "#00A087FF") %>%
+  hc_add_series(name = "LCS", data = rep(lcs_r, length(muestras)), type = "line", color = "#FF0000", dashStyle = "ShortDash") %>%
+  hc_add_series(name = "Línea Central", data = rep(lc_r, length(muestras)), type = "line", color = "#000000", dashStyle = "ShortDot") %>%
+  hc_add_series(name = "LCI", data = rep(lci_r, length(muestras)), type = "line", color = "#FF0000", dashStyle = "ShortDash") %>%
+  hc_tooltip(shared = TRUE)
+```
+
+Se observa que no hay puntos fuera de los límites y además el comportamiento de los puntos no sigue ningún patrón especial; por lo tanto, el proceso responsable del 
+diámetro de las punterías ha estado funcionando de manera estable en cuanto a la amplitud 
+de su variación. Luego, la variación que se observa en los rangos muestrales se debe a la variación que comúnmente tiene el proceso, por lo 
+que no se hizo presente ningún cambio ocasionado por una situación o causa especial.
+
+**Estado del proceso**
+
+En el caso del **diámetro de las punterías**, a partir de los diagrmas se concluye que el proceso es **estable** (o que está en control estadístico). 
+
+Pero, como se vio, el índice de capacidad:
+
+$$
+C_p = \frac{50}{6 \times 11{,}3} = 0{,}74
+$$
+
+resulta ser menor que 1, por lo tanto, el proceso es **incapaz de cumplir con las especificaciones**.
+
+El proceso correspondiente se considera entonces **establemente incapaz** (es decir, establemente malo), y se deben realizar análisis para detectar **fuentes permanentes de variación** dentro del proceso, como exceso de variación en materiales, en el personal, o en alguna de las **6 M** (material, máquina, método, mano de obra, medición y medio ambiente). lo anterior tambien se observa aqui:
+
+```{r}
+#| label: capacidad-xr
+#| echo: false
+#| message: false
+#| warning: false
+
+library(qcc)
+
+# Datos de medias y rangos ya calculados
+media_xr <- c(-2.8, 3.6, -3.4, 10.2, 1, 1.4, 0.8, -2.2, 5.4, -1, 
+              5.8, 0, -2.2, -0.6, 0.8, 6, 4.2, -5.6, -3.8, -1, 
+              2.2, -7.6, 4.4, -1.4, 5.8, -1.6, 0.2, 3.4, -3, -1.2)
+
+rangos_xr <- c(42, 40, 20, 30, 33, 19, 16, 22, 11, 40,
+               20, 26, 26, 24, 20, 20, 13, 24, 20, 27,
+               8, 43, 42, 31, 18, 41, 36, 21, 25, 31)
+
+# Límites de especificación (ejemplo: entre -20 y 20)
+spec.limits <- c(-20, 20)
+
+# Estimaciones
+x_bar <- mean(media_xr)
+R_bar <- mean(rangos_xr)
+d2 <- 2.326  # para subgrupos de tamaño 5
+sigma <- R_bar / d2
+
+# Cp y Cpk
+Cp <- (spec.limits[2] - spec.limits[1]) / (6 * sigma)
+Cpk <- min((spec.limits[2] - x_bar), (x_bar - spec.limits[1])) / (3 * sigma)
+
+# Porción fuera de especificación (usando normalidad)
+porcion_inferior <- pnorm(spec.limits[1], mean = x_bar, sd = sigma)
+porcion_superior <- 1 - pnorm(spec.limits[2], mean = x_bar, sd = sigma)
+porcion_caida <- porcion_inferior + porcion_superior
+
+# Mostrar resultados
+cat("Media del proceso:", round(x_bar, 2), "\n")
+cat("R̄ (promedio de rangos):", round(R_bar, 2), "\n")
+cat("Desviación estándar estimada (σ̂):", round(sigma, 4), "\n")
+cat("Cp:", round(Cp, 2), "\n")
+cat("Cpk:", round(Cpk, 2), "\n")
+cat("Porción fuera de especificación:", scales::percent(porcion_caida, accuracy = 0.01), "\n")
+```
+
+
+**Conclusión**
+
+El análisis mediante las cartas de control $\bar{x}$ y $R$ muestra que todos los subgrupos están dentro de los límites de control, lo que indica que el proceso de fabricación de punterías se mantiene estable a lo largo del tiempo. Es decir, no hay señales de variaciones inesperadas ni cambios bruscos en la media ni en la dispersión del diámetro, lo que sugiere que el proceso está en control estadístico. Sin embargo, esto no garantiza que el proceso cumpla con las especificaciones de calidad, solo que su comportamiento es consistente.
+
+# Diagrama de Control $\bar{x}$ y $S$ (para muestras Constante)
+
+En la fabricación de discos ópticos una máquina metaliza el disco. Para garantizar la uniformidad del metal en el disco, la densidad debe ser de 1.93, con una tolerancia de ±0.12. En la siguiente se muestran los datos obtenidos para un estudio inicial con tamaño de subgrupo de 5.
+
+```{r}
+#| label: tbl-datos-calculos-final
+#| tbl-cap: "Tabla de Datos de Subgrupos con Medias y Desviaciones Estándar (Ejercicio 16)"
+#| echo: false
+#| message: false
+#| warning: false
+
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+# --- 1. Crear matriz de datos crudos (25 subgrupos x 5 observaciones) ---
+datos_subgrupos_crudos <- matrix(c(
+  1.909, 1.917, 1.865, 1.991, 1.906,
+  1.957, 1.829, 1.870, 1.971, 1.971,
+  1.861, 1.946, 1.903, 1.951, 1.893,
+  1.938, 1.913, 1.884, 1.907, 1.950,
+  1.941, 1.966, 1.935, 1.936, 1.955,
+  2.032, 1.914, 1.911, 1.820, 1.932,
+  1.889, 1.963, 1.943, 1.918, 1.911,
+  1.891, 1.978, 1.907, 1.922, 1.908,
+  1.929, 1.870, 1.943, 1.819, 1.946,
+  1.956, 1.904, 1.904, 1.907, 1.864,
+  1.904, 1.910, 1.904, 1.903, 1.901,
+  1.926, 1.984, 1.899, 1.938, 1.978,
+  1.936, 1.903, 1.915, 1.932, 2.014,
+  1.937, 1.949, 1.898, 1.952, 1.869,
+  1.916, 1.961, 1.953, 1.954, 1.939,
+  1.867, 1.898, 1.929, 1.953, 1.952,
+  1.939, 1.918, 1.925, 1.912, 1.945,
+  1.940, 1.880, 1.882, 1.949, 1.910,
+  1.944, 1.919, 1.840, 1.940, 1.942,
+  1.933, 1.965, 2.031, 1.902, 1.923,
+  1.817, 1.878, 1.938, 2.058, 1.938,
+  1.939, 1.956, 1.951, 1.898, 1.969,
+  1.931, 1.894, 1.972, 1.936, 1.924,
+  1.927, 1.895, 1.938, 1.859, 1.938,
+  1.973, 1.949, 1.912, 1.870, 1.971
+), ncol = 5, byrow = TRUE)
+
+# --- 2. Convertir a data.frame y agregar nombres ---
+df <- as.data.frame(datos_subgrupos_crudos)
+colnames(df) <- paste0("Dato_", 1:5)
+df$Subgrupo <- as.character(1:25)
+df <- dplyr::relocate(df, Subgrupo)
+
+# --- 3. Calcular Media y Desviación Estándar por subgrupo ---
+df <- df %>%
+  rowwise() %>%
+  mutate(
+    Media = round(mean(c_across(starts_with("Dato_"))), 4),
+    Desviacion_Estandar = round(sd(c_across(starts_with("Dato_"))), 4)
+  ) %>%
+  ungroup()
+
+# --- 4. Fila resumen con promedios globales (mantiene tipo numérico) ---
+fila_total <- data.frame(
+  Subgrupo = "Promedio Total",
+  Dato_1 = NA_real_, Dato_2 = NA_real_, Dato_3 = NA_real_, Dato_4 = NA_real_, Dato_5 = NA_real_,
+  Media = round(mean(df$Media), 4),
+  Desviacion_Estandar = round(mean(df$Desviacion_Estandar), 4)
+)
+
+# --- 5. Unir tabla y reemplazar visualmente los NA por "" para mostrar ---
+df_tabla <- bind_rows(df, fila_total)
+
+# Reemplazar NA por "" en columnas Dato_1 a Dato_5 para mostrar vacío visualmente
+df_tabla[, paste0("Dato_", 1:5)] <- lapply(df_tabla[, paste0("Dato_", 1:5)], function(col) {
+  ifelse(is.na(col), "", round(col, 3))
+})
+
+# --- 6. Mostrar tabla con estilo ---
+kable(df_tabla, format = "html", align = "c",
+      caption = "Tabla de Datos de Subgrupos con Medias y Desviaciones Estándar (Ejercicio 16)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE, position = "center") %>%
+  row_spec(nrow(df_tabla), bold = TRUE, background = "#FFF3CD")
+```
+
+Calculo del diagrama $\bar{x}$.
+
+$$
+\begin{aligned}
+\text{LCI} &= \bar{x} - A_3(n_i) \cdot \bar{S} = 1{,}9247 - 1{,}427 \cdot 0{,}0381 = 1{,}8704 \\
+\text{LC} &= \bar{x} = 1{,}9247 \\
+\text{LCS} &= \bar{x} + A_3(n_i) \cdot \bar{S} = 1{,}9247 + 1{,}427 \cdot 0{,}0381 = 1{,}979
+\end{aligned}
+$$
+
+```{r}
+#| label: graf-xbarra
+#| fig-cap: "Diagrama de Control para la Media (\u0304X)"
+#| echo: true
+#| message: false
+#| warning: false
+
+library(highcharter)
+
+# Datos
+xbar <- df$Media
+subgrupos <- as.numeric(df$Subgrupo)
+
+# Límites de control
+LC_x <- 1.9247
+LSC_x <- 1.979
+LIC_x <- 1.8704
+
+highchart() %>%
+  hc_title(text = "Diagrama de Control de la Media (\u0304X)") %>%
+  hc_xAxis(title = list(text = "Subgrupo"), categories = subgrupos) %>%
+  hc_yAxis(
+    title = list(text = "Media"),
+    min = LIC_x - 0.01,  # Extiende un poco por debajo para que se vea LCI
+    max = LSC_x + 0.01,  # Extiende un poco por encima para que se vea LCS
+    plotLines = list(
+      list(value = LC_x, color = "#2C3E50", width = 2, dashStyle = "ShortDash", label = list(text = "LC (1,9247)")),
+      list(value = LSC_x, color = "#E74C3C", width = 2, dashStyle = "ShortDash", label = list(text = "LCS (1,979)")),
+      list(value = LIC_x, color = "#3498DB", width = 2, dashStyle = "ShortDash", label = list(text = "LCI (1,8704)"))
+    )
+  ) %>%
+  hc_add_series(name = "Medias", data = xbar, type = "line", color = "#1ABC9C", marker = list(enabled = TRUE)) %>%
+  hc_tooltip(valueDecimals = 4)
+```
+
+
+$$
+\begin{aligned}
+\text{LCI} &= B_3 \cdot \bar{S} = 0 \cdot 0{,}0381 = 0 \\
+\text{LC} &= \bar{S} = 0{,}0381 \\
+\text{LCS} &= B_4 \cdot \bar{S} = 2{,}089 \cdot 0{,}0381 = 0{,}0795
+\end{aligned}
+$$
+
+
+```{r}
+#| label: graf-s
+#| fig-cap: "Diagrama de Control para la Desviación Estándar (S)"
+#| echo: true
+#| message: false
+#| warning: false
+
+# Datos base
+s <- df$Desviacion_Estandar
+
+# Límites
+LC_s <- 0.0381
+LSC_s <- 0.0795
+LIC_s <- 0
+
+highchart() %>%
+  hc_title(text = "Diagrama de Control de la Desviación Estándar (S)") %>%
+  hc_xAxis(title = list(text = "Subgrupo"), categories = subgrupos) %>%
+  hc_yAxis(title = list(text = "Desviación Estándar"), plotLines = list(
+    list(value = LC_s, color = "#2C3E50", width = 2, dashStyle = "ShortDash", label = list(text = "LC")),
+    list(value = LSC_s, color = "#E74C3C", width = 2, dashStyle = "ShortDash", label = list(text = "LCS")),
+    list(value = LIC_s, color = "#3498DB", width = 2, dashStyle = "ShortDash", label = list(text = "LCI"))
+  )) %>%
+  hc_add_series(name = "S", data = s, type = "line", color = "#9B59B6", marker = list(enabled = TRUE)) %>%
+  hc_tooltip(valueDecimals = 4)
+```
+
+Tras ver los diagramas tanto el $S$ como el $\bar{x}$, se observa que aunque el diagrama $\bar{x}$ aparenta que la media del proceso es estable, en el diagrama $S$ se nota, que la variabilidad del proceso no es estable, dado que existe en este caso, un punto fuera de los limites de control calculados (el punto 21 con $s= 0,0893$). Por lo tanto, suponiendo que esto se debe a alguna causa atribuible se procede a eliminar este punto del diagrama y volver a realizar los diagramas:
+
+
+```{r}
+#| label: graf-xbarra-filtrado
+#| fig-cap: "Carta de Control de la Media (X̄) sin el Subgrupo 21"
+#| echo: true
+#| message: false
+#| warning: false
+
+library(highcharter)
+
+# Asegúrate de tener definido el objeto df con estas columnas: Subgrupo, Media, Desviacion_Estandar
+# Este es solo un ejemplo si no lo tienes cargado previamente:
+# df <- data.frame(
+#   Subgrupo = 1:25,
+#   Media = runif(25, 1.85, 2.00),
+#   Desviacion_Estandar = runif(25, 0.02, 0.05)
+# )
+
+# Eliminar subgrupo 21
+df_sin21 <- df[df$Subgrupo != 21, ]
+
+# Variables
+subgrupos_filtrados <- df_sin21$Subgrupo
+xbar_filtrado <- df_sin21$Media
+s_filtrado <- df_sin21$Desviacion_Estandar
+
+# Parámetros
+x_barra_filtrado <- mean(xbar_filtrado, na.rm = TRUE)
+s_barra_filtrado <- mean(s_filtrado, na.rm = TRUE)
+A3 <- 1.427  # para n = 5
+
+# Límites
+LCS_x <- x_barra_filtrado + A3 * s_barra_filtrado
+LCI_x <- x_barra_filtrado - A3 * s_barra_filtrado
+LC_x  <- x_barra_filtrado
+
+# Gráfico
+highchart() %>%
+  hc_title(text = "Carta de Control de la Media (X̄) sin el Subgrupo 21") %>%
+  hc_xAxis(title = list(text = "Subgrupo"), categories = subgrupos_filtrados) %>%
+  hc_yAxis(
+    title = list(text = "Media"),
+    min = min(c(LCI_x, xbar_filtrado), na.rm = TRUE) - 0.01,
+    max = max(c(LCS_x, xbar_filtrado), na.rm = TRUE) + 0.01,
+    plotLines = list(
+      list(value = LC_x, color = "#2C3E50", width = 2, dashStyle = "ShortDash",
+           label = list(text = paste0("LC = ", round(LC_x, 4)))),
+      list(value = LCS_x, color = "#E74C3C", width = 2, dashStyle = "ShortDash",
+           label = list(text = paste0("LCS = ", round(LCS_x, 4)))),
+      list(value = LCI_x, color = "#3498DB", width = 2, dashStyle = "ShortDash",
+           label = list(text = paste0("LCI = ", round(LCI_x, 4))))
+    )
+  ) %>%
+  hc_add_series(name = "Medias", data = xbar_filtrado, type = "line", color = "#1ABC9C", marker = list(enabled = TRUE)) %>%
+  hc_tooltip(valueDecimals = 4)
+```
+
+
+```{r}
+#| label: graf-s-ajustado
+#| fig-cap: "Carta de Control de la Desviación Estándar (S) sin el Subgrupo 21"
+#| echo: true
+#| message: false
+#| warning: false
+
+library(highcharter)
+
+# Ya está filtrado df_sin21 arriba, lo reutilizamos
+
+# Valores
+subgrupos_filtrados <- df_sin21$Subgrupo
+s_filtrado <- df_sin21$Desviacion_Estandar
+s_barra_filtrado <- mean(s_filtrado)
+
+# Límites
+LCS_s <- 2.089 * s_barra_filtrado
+LCI_s <- 0
+LC_s  <- s_barra_filtrado
+
+# Gráfico
+highchart() %>%
+  hc_title(text = "Diagrama de Control de la Desviación Estándar (S)") %>%
+  hc_xAxis(title = list(text = "Subgrupo"), categories = subgrupos_filtrados) %>%
+  hc_yAxis(
+    title = list(text = "S"),
+    min = 0,
+    max = LCS_s + 0.01,
+    plotLines = list(
+      list(value = LC_s, color = "#2C3E50", width = 2, dashStyle = "ShortDash",
+           label = list(text = paste0("LC (", round(LC_s, 4), ")"))),
+      list(value = LCS_s, color = "#E74C3C", width = 2, dashStyle = "ShortDash",
+           label = list(text = paste0("LCS (", round(LCS_s, 4), ")"))),
+      list(value = LCI_s, color = "#3498DB", width = 2, dashStyle = "ShortDash",
+           label = list(text = "LCI (0)"))
+    )
+  ) %>%
+  hc_add_series(name = "Desviaciones estándar", data = s_filtrado, type = "line", color = "#1ABC9C") %>%
+  hc_tooltip(valueDecimals = 4)
+```
+
+Se ha realizado el procedimiento y ahora se puede observar que la variabilidad del punto o subgrupo 6 esta fuera de los límites de control del diagrama $S$, con un $S = 0.0755$. Por lo que se procede a repetir el procedimiento eliminando ahora ese punto:
+
+
+```{r}
+#| label: graf-xbarra-ajustado-sin6
+#| fig-cap: "Carta de Control de la Media (X̄) sin los Subgrupos 6 y 21"
+#| echo: true
+#| message: false
+#| warning: false
+
+library(highcharter)
+
+# Filtrado de subgrupos 6 y 21
+df_sin6y21 <- df[!(df$Subgrupo %in% c(6, 21)), ]
+
+# Valores para X̄
+subgrupos_filtrados_x <- df_sin6y21$Subgrupo
+xbar_filtrado <- df_sin6y21$Media
+
+xbar_barra <- mean(xbar_filtrado)
+s_filtrado <- df_sin6y21$Desviacion_Estandar
+n <- unique(df$Tamanio_Subgrupo)  # tamaño del subgrupo
+
+# Constante A3 para n=5. Cambiar si tu n es otro.
+A3 <- 1.023
+LCS_x <- xbar_barra + A3 * mean(s_filtrado)
+LCI_x <- xbar_barra - A3 * mean(s_filtrado)
+LC_x <- xbar_barra
+
+highchart() %>%
+  hc_title(text = "Diagrama de Control de la Media (X̄)") %>%
+  hc_xAxis(title = list(text = "Subgrupo"), categories = subgrupos_filtrados_x) %>%
+  hc_yAxis(
+    title = list(text = "Media"),
+    min = LCI_x - 0.01,
+    max = LCS_x + 0.01,
+    plotLines = list(
+      list(value = LC_x, color = "#2C3E50", width = 2, dashStyle = "ShortDash",
+           label = list(text = paste0("LC (", round(LC_x, 4), ")"))),
+      list(value = LCS_x, color = "#E74C3C", width = 2, dashStyle = "ShortDash",
+           label = list(text = paste0("LCS (", round(LCS_x, 4), ")"))),
+      list(value = LCI_x, color = "#3498DB", width = 2, dashStyle = "ShortDash",
+           label = list(text = paste0("LCI (", round(LCI_x, 4), ")")))
+    )
+  ) %>%
+  hc_add_series(name = "Medias", data = xbar_filtrado, type = "line", color = "#9B59B6") %>%
+  hc_tooltip(valueDecimals = 4)
+```
+
+
+```{r}
+#| label: graf-s-ajustado-sin6
+#| fig-cap: "Carta de Control de la Desviación Estándar (S) sin los Subgrupos 6 y 21"
+#| echo: true
+#| message: false
+#| warning: false
+
+library(highcharter)
+
+# Filtrado de subgrupos 6 y 21
+df_sin6y21 <- df[!(df$Subgrupo %in% c(6, 21)), ]
+
+# Valores para S
+subgrupos_filtrados_s <- df_sin6y21$Subgrupo
+s_filtrado <- df_sin6y21$Desviacion_Estandar
+
+s_barra_filtrado <- mean(s_filtrado)
+LCS_s <- 2.089 * s_barra_filtrado
+LCI_s <- 0
+LC_s  <- s_barra_filtrado
+
+highchart() %>%
+  hc_title(text = "Diagrama de Control de la Desviación Estándar (S)") %>%
+  hc_xAxis(title = list(text = "Subgrupo"), categories = subgrupos_filtrados_s) %>%
+  hc_yAxis(
+    title = list(text = "S"),
+    min = 0,
+    max = LCS_s + 0.01,
+    plotLines = list(
+      list(value = LC_s, color = "#2C3E50", width = 2, dashStyle = "ShortDash",
+           label = list(text = paste0("LC (", round(LC_s, 4), ")"))),
+      list(value = LCS_s, color = "#E74C3C", width = 2, dashStyle = "ShortDash",
+           label = list(text = paste0("LCS (", round(LCS_s, 4), ")"))),
+      list(value = LCI_s, color = "#3498DB", width = 2, dashStyle = "ShortDash",
+           label = list(text = "LCI (0)"))
+    )
+  ) %>%
+  hc_add_series(name = "Desviaciones estándar", data = s_filtrado, type = "line", color = "#1ABC9C") %>%
+  hc_tooltip(valueDecimals = 4)
+```
+
+
+```{r}
+#| label: capacidad-xs-ajustada
+#| echo: false
+#| message: false
+#| warning: false
+
+library(qcc)
+library(scales)
+
+# Datos del diagrama X̄–S (sin subgrupos 6 y 21)
+datos_xs <- matrix(c(
+  1.909, 1.917, 1.865, 1.991, 1.906,
+  1.957, 1.829, 1.870, 1.971, 1.971,
+  1.861, 1.946, 1.903, 1.951, 1.893,
+  1.938, 1.913, 1.884, 1.907, 1.950,
+  1.941, 1.966, 1.935, 1.936, 1.955,
+  # subgrupo 6 eliminado
+  1.889, 1.963, 1.943, 1.918, 1.911,
+  1.891, 1.978, 1.907, 1.922, 1.908,
+  1.929, 1.870, 1.943, 1.819, 1.946,
+  1.956, 1.904, 1.904, 1.907, 1.864,
+  1.904, 1.910, 1.904, 1.903, 1.901,
+  1.926, 1.984, 1.899, 1.938, 1.978,
+  1.936, 1.903, 1.915, 1.932, 2.014,
+  1.937, 1.949, 1.898, 1.952, 1.869,
+  1.916, 1.961, 1.953, 1.954, 1.939,
+  1.867, 1.898, 1.929, 1.953, 1.952,
+  1.939, 1.918, 1.925, 1.912, 1.945,
+  1.940, 1.880, 1.882, 1.949, 1.910,
+  1.944, 1.919, 1.840, 1.940, 1.942,
+  1.933, 1.965, 2.031, 1.902, 1.923,
+  # subgrupo 21 eliminado
+  1.939, 1.956, 1.951, 1.898, 1.969,
+  1.931, 1.894, 1.972, 1.936, 1.924,
+  1.927, 1.895, 1.938, 1.859, 1.938,
+  1.973, 1.949, 1.912, 1.870, 1.971
+), ncol = 5, byrow = TRUE)
+
+# Límites de especificación
+spec.limits <- c(1.80, 2.10)
+
+# Calcular media de cada subgrupo
+medias <- rowMeans(datos_xs)
+
+# Calcular desviación estándar de cada subgrupo
+desvios <- apply(datos_xs, 1, sd)
+
+# Estadísticos globales
+x_bar <- mean(medias)
+S_bar <- mean(desvios)
+c4 <- 0.94  # para n = 5
+sigma <- S_bar / c4
+
+# Índices de capacidad
+Cp <- (spec.limits[2] - spec.limits[1]) / (6 * sigma)
+Cpk <- min((spec.limits[2] - x_bar), (x_bar - spec.limits[1])) / (3 * sigma)
+
+# Porción fuera de especificación
+porcion_inferior <- pnorm(spec.limits[1], mean = x_bar, sd = sigma)
+porcion_superior <- 1 - pnorm(spec.limits[2], mean = x_bar, sd = sigma)
+porcion_caida <- porcion_inferior + porcion_superior
+
+# Mostrar resultados
+cat("Media del proceso:", round(x_bar, 4), "\n")
+cat("S̄ (promedio de desviaciones estándar):", round(S_bar, 4), "\n")
+cat("Desviación estándar estimada (σ̂):", round(sigma, 4), "\n")
+cat("Cp:", round(Cp, 2), "\n")
+cat("Cpk:", round(Cpk, 2), "\n")
+cat("Porción fuera de especificación:", percent(porcion_caida, accuracy = 0.01), "\n")
+```
+
+**Conclusión**
+
+Tras eliminar los subgrupos 6 y 21 —ambos fuera de los límites de control en el diagrama S—, se observó que todos los puntos restantes en las cartas de control de la desviación estándar y de la media se encuentran dentro de los límites establecidos. Esto indica que, excluyendo esas dos observaciones atípicas, el proceso de metalización de discos ópticos opera de manera estable y bajo control estadístico. La densidad del recubrimiento metálico se mantiene cercana al valor objetivo de 1.93, con una variabilidad aceptable según la tolerancia técnica de ±0.12. Por tanto, el proceso puede considerarse confiable para producir discos con una uniformidad adecuada en la capa metálica, siempre que se mantenga la vigilancia sobre posibles subgrupos atípicos como los que fueron detectados inicialmente.
+
+# Diagrama de Control $\bar{x}$ y $S$ (para muestras variables)
+
+Se utilizará el mismo ejercicio anterior pero en este caso con muestras variables.
+
+```{r}
+library(dplyr)
+library(data.table)
+library(reactable)
+
+# Tus datos originales como lista
+datos_variable <- list(
+  `1` = c(1.909, 1.917, 1.865, 1.991, 1.906),
+  `2` = c(1.957, 1.829, 1.870, 1.971),
+  `3` = c(1.861, 1.946, 1.903),
+  `4` = c(1.938, 1.913, 1.884, 1.907),
+  `5` = c(1.941, 1.966, 1.935, 1.936, 1.955),
+  `6` = c(1.914, 1.911, 1.820, 1.932),
+  `7` = c(1.889, 1.963, 1.943, 1.918, 1.911),
+  `8` = c(1.891, 1.978, 1.907, 1.922, 1.908),
+  `9` = c(1.929, 1.943, 1.819, 1.946),
+  `10` = c(1.956, 1.904, 1.904, 1.907, 1.864),
+  `11` = c(1.904, 1.910, 1.904, 1.903, 1.901),
+  `12` = c(1.926, 1.984, 1.899, 1.938, 1.978),
+  `13` = c(1.936, 1.903, 1.915, 1.932),
+  `14` = c(1.937, 1.949, 1.898, 1.952, 1.869),
+  `15` = c(1.916, 1.961, 1.953, 1.954, 1.939),
+  `16` = c(1.867, 1.898, 1.929, 1.953, 1.952),
+  `17` = c(1.939, 1.918, 1.925),
+  `18` = c(1.940, 1.880, 1.882, 1.949, 1.910),
+  `19` = c(1.944, 1.919, 1.840, 1.940, 1.942),
+  `20` = c(1.933, 1.965, 2.031, 1.902, 1.923),
+  `21` = c(1.878, 1.938, 2.058, 1.938),
+  `22` = c(1.939, 1.956, 1.951, 1.898, 1.969),
+  `23` = c(1.931, 1.894, 1.972, 1.936, 1.924),
+  `24` = c(1.927, 1.895, 1.938, 1.859, 1.938),
+  `25` = c(1.973, 1.949, 1.912, 1.870, 1.971)
+)
+
+# Crear tabla tipo "wide" con columnas para cada valor, rellenando con NA donde no hay dato
+max_vals <- max(sapply(datos_variable, length))
+
+tabla_valores <- lapply(datos_variable, function(x) {
+  length(x) <- max_vals  # extiende con NA si es necesario
+  x
+})
+
+df <- data.frame(
+  muestra = as.integer(names(tabla_valores)),
+  do.call(rbind, tabla_valores)
+)
+
+# Renombrar columnas X1, X2, ... igual que en tu ejemplo
+colnames(df)[-1] <- paste0("X_", 1:max_vals)
+
+# Calcular media, desviación y tamaño por fila
+df <- df %>%
+  rowwise() %>%
+  mutate(
+    ni = sum(!is.na(c_across(starts_with("X_")))),
+    media = mean(c_across(starts_with("X_")), na.rm = TRUE),
+    desviacion = sd(c_across(starts_with("X_")), na.rm = TRUE)
+  ) %>%
+  ungroup() %>%
+  select(muestra, ni, starts_with("X_"), media, desviacion) %>%
+  data.table::as.data.table()
+
+# Mostrar tabla reactable
+reactable::reactable(
+  df,
+  columns = list(
+    muestra = colDef(header = "Muestra", align = "right"),
+    ni = colDef(header = "Tamaño de muestra", align = "right"),
+    media = colDef(
+      header = "\\( \\bar{x}_i \\)", align = "right",
+      format = colFormat(separators = TRUE, digits = 4, locales = "es-ES")
+    ),
+    desviacion = colDef(
+      header = "\\( S_i \\)", align = "right",
+      format = colFormat(separators = TRUE, digits = 4, locales = "es-ES")
+    )
+  ),
+  striped = TRUE,
+  bordered = TRUE,
+  highlight = TRUE,
+  filterable = TRUE,
+  minRows = 10
+)
+```
+
+Calculo del diagrama $S$ para muestras variables.
+
+$$
+\begin{aligned}
+\text{LCI} &= B_3(5) \bar{S} = 0 (0{,}0271) = 0{,}0000 \\
+\text{LC} &= \bar{S} = 0{,}0271 \\
+\text{LCS} &= B_4(5) \bar{S} = 1{,}970 (0{,}0271) = 0{,}0534
+\end{aligned}
+$$
+
+Calculo del diagrama $\bar{x}$ para muestras variables.
+
+$$
+\begin{aligned}
+\text{LCI} &= \bar{\bar{x}} - A_3(5) \bar{S} = 1{,}9237 - 1{,}287 (0{,}0271) = 1{,}8888 \\
+\text{LC} &= \bar{\bar{x}} = 1{,}9237 \\
+\text{LCS} &= \bar{\bar{x}} + A_3(5) \bar{S} = 1{,}9237 + 1{,}287 (0{,}0271) = 1{,}9586
+\end{aligned}
+$$
+
+```{r}
+library(dplyr)
+library(tibble)
+library(reactable)
+
+# Datos originales
+datos <- list(
+  `1` = c(1.909, 1.917, 1.865, 1.991, 1.906),
+  `2` = c(1.957, 1.829, 1.870, 1.971),
+  `3` = c(1.861, 1.946, 1.903),
+  `4` = c(1.938, 1.913, 1.884, 1.907),
+  `5` = c(1.941, 1.966, 1.935, 1.936, 1.955),
+  `6` = c(1.914, 1.911, 1.820, 1.932),
+  `7` = c(1.889, 1.963, 1.943, 1.918, 1.911),
+  `8` = c(1.891, 1.978, 1.907, 1.922, 1.908),
+  `9` = c(1.929, 1.943, 1.819, 1.946),
+  `10` = c(1.956, 1.904, 1.904, 1.907, 1.864),
+  `11` = c(1.904, 1.910, 1.904, 1.903, 1.901),
+  `12` = c(1.926, 1.984, 1.899, 1.938, 1.978),
+  `13` = c(1.936, 1.903, 1.915, 1.932),
+  `14` = c(1.937, 1.949, 1.898, 1.952, 1.869),
+  `15` = c(1.916, 1.961, 1.953, 1.954, 1.939),
+  `16` = c(1.867, 1.898, 1.929, 1.953, 1.952),
+  `17` = c(1.939, 1.918, 1.925),
+  `18` = c(1.940, 1.880, 1.882, 1.949, 1.910),
+  `19` = c(1.944, 1.919, 1.840, 1.940, 1.942),
+  `20` = c(1.933, 1.965, 2.031, 1.902, 1.923),
+  `21` = c(1.878, 1.938, 2.058, 1.938),
+  `22` = c(1.939, 1.956, 1.951, 1.898, 1.969),
+  `23` = c(1.931, 1.894, 1.972, 1.936, 1.924),
+  `24` = c(1.927, 1.895, 1.938, 1.859, 1.938),
+  `25` = c(1.973, 1.949, 1.912, 1.870, 1.971)
+)
+
+# Estadísticos por subgrupo
+resumen <- tibble(
+  subgrupo = as.integer(names(datos)),
+  media = sapply(datos, mean),
+  sd = sapply(datos, sd),
+  n = sapply(datos, length)
+)
+
+# Tabla de factores de control por n_i
+tabla_B <- tibble(
+  n = 2:10,
+  B3 = c(0.000, 0.000, 0.000, 0.000, 0.030, 0.118, 0.185, 0.239, 0.284),
+  B4 = c(3.267, 2.568, 2.266, 2.089, 1.970, 1.882, 1.815, 1.761, 1.716),
+  A3 = c(2.659, 1.954, 1.628, 1.427, 1.287, 1.182, 1.099, 1.032, 0.975)
+)
+
+# Promedios globales
+xbarbar <- mean(resumen$media)
+S_bar <- mean(resumen$sd)
+
+# Calcular límites personalizados
+resumen <- resumen %>%
+  left_join(tabla_B, by = "n") %>%
+  mutate(
+    LIC_s = round(B3 * S_bar, 4),
+    LC_s  = round(S_bar, 4),
+    LSC_s = round(B4 * S_bar, 4),
+    LIC_x = round(xbarbar - A3 * S_bar, 4),
+    LC_x  = round(xbarbar, 4),
+    LSC_x = round(xbarbar + A3 * S_bar, 4)
+  )
+
+# Mostrar tabla interactiva
+reactable(
+  resumen,
+  columns = list(
+    subgrupo = colDef(name = "Subgrupo"),
+    n = colDef(name = "nᵢ"),
+    media = colDef(name = "Media", format = colFormat(digits = 4)),
+    sd = colDef(name = "Desv. Est.", format = colFormat(digits = 4)),
+    LIC_x = colDef(name = "LCI X̄"),
+    LC_x  = colDef(name = "LC X̄"),
+    LSC_x = colDef(name = "LCS X̄"),
+    LIC_s = colDef(name = "LCI S"),
+    LC_s  = colDef(name = "LC S"),
+    LSC_s = colDef(name = "LCS S")
+  ),
+  striped = TRUE,
+  bordered = TRUE,
+  highlight = TRUE,
+  searchable = TRUE
+)
+```
+```{r}
+library(highcharter)
+
+highchart() %>%
+  hc_title(text = "Diagrama de Control de la Media (\\u0304X)") %>%
+  hc_xAxis(title = list(text = "Subgrupo"),
+           categories = resumen$subgrupo) %>%
+  hc_yAxis(title = list(text = "Media por subgrupo")) %>%
+  hc_add_series(name = "Media", 
+                data = list_parse2(data.frame(x = resumen$subgrupo, y = resumen$media)),
+                type = "line", color = "#1ABC9C") %>%
+  hc_add_series(name = "LCS", 
+                data = list_parse2(data.frame(x = resumen$subgrupo, y = resumen$LSC_x)),
+                type = "line", color = "#E74C3C", dashStyle = "ShortDash") %>%
+  hc_add_series(name = "LC", 
+                data = list_parse2(data.frame(x = resumen$subgrupo, y = resumen$LC_x)),
+                type = "line", color = "#2C3E50", dashStyle = "ShortDash") %>%
+  hc_add_series(name = "LCI", 
+                data = list_parse2(data.frame(x = resumen$subgrupo, y = resumen$LIC_x)),
+                type = "line", color = "#3498DB", dashStyle = "ShortDash") %>%
+  hc_tooltip(valueDecimals = 4)
+
+```
+
+```{r}
+highchart() %>%
+  hc_title(text = "Diagrama de Control de la Desviación Estándar (S)") %>%
+  hc_xAxis(title = list(text = "Subgrupo"),
+           categories = resumen$subgrupo) %>%
+  hc_yAxis(title = list(text = "Desviación Estándar por subgrupo")) %>%
+  hc_add_series(name = "S", 
+                data = list_parse2(data.frame(x = resumen$subgrupo, y = resumen$sd)),
+                type = "line", color = "#9B59B6") %>%
+  hc_add_series(name = "LCS", 
+                data = list_parse2(data.frame(x = resumen$subgrupo, y = resumen$LSC_s)),
+                type = "line", color = "#E74C3C", dashStyle = "ShortDash") %>%
+  hc_add_series(name = "LC", 
+                data = list_parse2(data.frame(x = resumen$subgrupo, y = resumen$LC_s)),
+                type = "line", color = "#2C3E50", dashStyle = "ShortDash") %>%
+  hc_add_series(name = "LCI", 
+                data = list_parse2(data.frame(x = resumen$subgrupo, y = resumen$LIC_s)),
+                type = "line", color = "#3498DB", dashStyle = "ShortDash") %>%
+  hc_tooltip(valueDecimals = 4)
+```
+
+
+
+**Conclusión**
+
+Tanto en el diagrama de control de la media ($\bar{x}$) como en el de la desviación estándar ($S$), todos los puntos correspondientes a los subgrupos se encuentran dentro de sus respectivos límites de control variables. Esto indica que el proceso está bajo control estadístico, sin evidencia de variabilidad anormal ni desplazamientos sistemáticos en la media o la dispersión. Por lo tanto, no se detectan causas asignables que ameriten intervención en el proceso.
+
+# Diagrama de Control para Observaciones Individuales
+
+En la producción de tequila para medir la eficacia del proceso de molienda se mide el grado brix residual después de 
+la molienda (cantidad de azúcar que queda en el bagazo 
+del agave). Ésta es una variable del tipo entre más pequeña 
+mejor, y el valor máximo tolerado que se ha fi jado en una 
+empresa en particular es ES = 3.5%. Después de moler cada 
+lote se determina el grado brix residual, por lo que se considera un proceso lento que es más apropiado analizar con 
+una carta de individuales. En la siguiente se muestran los 
+datos para los últimos 40 lotes molidos, y se agregó la columna para el rango móvil de orden 2, que se obtiene del 
+rango entre los dos datos consecutivos más recientes.
+
+
+```{r}
+#| label: tabla-brix
+#| message: false
+#| warning: false
+
+library(tibble)
+library(dplyr)
+library(gt)
+
+# Crear los datos
+brix_tabla <- tibble(
+  Lote_1_20 = 1:20,
+  Brix_1_20 = c(2.0, 2.4, 2.2, 1.4, 2.3, 1.8, 1.5, 1.5, 2.1, 2.0,
+                2.2, 2.0, 1.9, 2.4, 3.3, 2.1, 2.1, 1.8, 1.6, 2.1),
+  Rango_1_20 = c(NA, 0.4, 0.2, 1.8, 0.9, 0.5, 0.3, 0.0, 0.6, 0.1,
+                 0.2, 0.6, 0.3, 0.5, 0.9, 1.2, 0.0, 0.3, 0.2, 0.5),
+  Lote_21_40 = 21:40,
+  Brix_21_40 = c(1.2, 1.8, 2.0, 2.4, 1.9, 2.4, 2.4, 1.7, 2.1, 1.7,
+                 2.4, 1.6, 2.1, 2.1, 1.8, 1.3, 1.3, 1.0, 1.6, 1.6),
+  Rango_21_40 = c(0.9, 0.6, 0.2, 0.4, 0.5, 0.5, 0.0, 0.7, 0.4, 0.4,
+                  0.3, 0.8, 0.5, 0.0, 0.3, 0.5, 0.0, 0.3, 0.6, 0.1)
+)
+
+# Crear tabla gt
+brix_tabla |>
+  gt() |>
+  tab_header(
+    title = "Tabla de Brix Residual y Rango Móvil por Lote"
+  ) |>
+  cols_label(
+    Lote_1_20 = "Lote",
+    Brix_1_20 = "Brix residual",
+    Rango_1_20 = "Rango móvil",
+    Lote_21_40 = "Lote",
+    Brix_21_40 = "Brix residual",
+    Rango_21_40 = "Rango móvil"
+  ) |>
+  fmt_number(
+    columns = where(is.numeric),
+    decimals = 1
+  ) |>
+  tab_footnote(
+    footnote = html("&#x1D62; = 1.95 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &#x0052;&#x0304; = 0.43"),
+    locations = cells_title(groups = "title")
+  ) |>
+  tab_options(
+    table.font.size = px(14),
+    heading.align = "left",
+    table.width = pct(100)
+  )
+```
+
+$$
+\begin{aligned}
+\text{LCS} &= \bar{x} + A_2 \cdot \overline{MR} = 1{,}95 + 2{,}66 \cdot 0{,}43 = 3{,}0938 \\
+\text{LC} &= \bar{x} = 1{,}95 \\
+\text{LCI} &= \bar{x} - A_2 \cdot \overline{MR} = 1{,}95 - 2{,}66 \cdot 0{,}43 = 0{,}8063
+\end{aligned}
+$$
+
+$$
+\begin{aligned}
+\text{LCS} &= D_4 \cdot \overline{MR} = 3{,}267 \cdot 0{,}43 = 1{,}4038 \\
+\text{LC} &= \overline{MR} = 0{,}43 \\
+\text{LCI} &= 0 \quad \text{(por convención)}
+\end{aligned}
+$$
+
+```{r}
+#| label: graf-individuales
+#| fig-cap: "Carta de Control de Valores Individuales"
+#| echo: true
+#| message: false
+#| warning: false
+
+library(highcharter)
+
+# Datos
+brix <- c(
+  2.0, 2.4, 2.2, 1.4, 2.3, 1.8, 1.5, 1.5, 2.1, 2.0,
+  1.6, 2.2, 1.9, 2.4, 3.3, 2.1, 2.1, 1.8, 1.6, 2.1,
+  1.2, 1.8, 2.0, 2.4, 1.9, 2.1, 2.4, 1.7, 2.1, 1.7,
+  2.4, 2.3, 1.6, 2.1, 1.8, 1.3, 1.6, 1.7, 1.6, 2.1
+)
+
+subgrupos <- 1:40
+
+# Límites
+LC <- 1.95
+A2 <- 2.66
+MR_bar <- 0.43
+LCS <- LC + A2 * MR_bar
+LCI <- LC - A2 * MR_bar
+
+# Gráfico
+highchart() %>%
+  hc_title(text = "Carta de Control de Valores Individuales") %>%
+  hc_xAxis(title = list(text = "Lote"), categories = subgrupos) %>%
+  hc_yAxis(title = list(text = "Brix"), plotLines = list(
+    list(value = LCS, color = "#E74C3C", width = 2, dashStyle = "ShortDash", label = list(text = "LCS")),
+    list(value = LC, color = "#2C3E50", width = 2, dashStyle = "ShortDash", label = list(text = "LC")),
+    list(value = LCI, color = "#3498DB", width = 2, dashStyle = "ShortDash", label = list(text = "LCI"))
+  )) %>%
+  hc_add_series(name = "Brix", data = brix, type = "line", color = "#9B59B6", marker = list(enabled = TRUE)) %>%
+  hc_tooltip(valueDecimals = 2)
+```
+
+```{r}
+#| label: graf-rangos
+#| fig-cap: "Carta de Control de Rangos Móviles"
+#| echo: true
+#| message: false
+#| warning: false
+
+# Calcular rangos móviles
+rangos <- abs(diff(brix))
+
+# Límites
+LC <- MR_bar
+D4 <- 3.267
+LCS <- D4 * MR_bar
+LCI <- 0
+
+# Gráfico
+highchart() %>%
+  hc_title(text = "Carta de Control de Rangos Móviles") %>%
+  hc_xAxis(title = list(text = "Lote"), categories = 2:40) %>%
+  hc_yAxis(title = list(text = "Rango Móvil"), plotLines = list(
+    list(value = LCS, color = "#E74C3C", width = 2, dashStyle = "ShortDash", label = list(text = "LCS")),
+    list(value = LC, color = "#2C3E50", width = 2, dashStyle = "ShortDash", label = list(text = "LC")),
+    list(value = LCI, color = "#3498DB", width = 2, dashStyle = "ShortDash", label = list(text = "LCI"))
+  )) %>%
+  hc_add_series(name = "Rango", data = rangos, type = "line", color = "#1ABC9C", marker = list(enabled = TRUE)) %>%
+  hc_tooltip(valueDecimals = 2)
+```
+
+En la carta de control correspondiente se observa que no hay tendencias ni ningún 
+otro patrón especial, salvo un punto fuera del LCS correspondiente al lote 15. Por lo tanto, durante la molienda de 
+ese lote ocurrió algo que usualmente no sucede. Al investigar si ocurrió algo especial, se encontró que ahí se detectó 
+un desajuste mayor en el molino. Esta evidencia mostrada 
+en la carta ayudó a reforzar la necesidad de tener un mayor 
+cuidado en dicho proceso mediante un monitoreo objetivo 
+con la carta de control, a fin de detectar oportunamente tal 
+tipo de cambios.
+La carta de rango móvil que acompaña a la carta de 
+individuales.
+En el grafico de observaciones individuales se observa que el punto 15 excede el límite de control superior, por lo que se supone que debe ser por alguna causa atribuible y se procede a realiazar el mismo procedimiento, esta vez, extrayendo el punto 15.
+
+$$
+\begin{aligned}
+\text{LCS} &= \bar{x} + 3 \cdot \hat{\sigma} = 1{,}92 + 3 \cdot 0{,}3457 = 2{,}9571 \\
+\text{LC}  &= \bar{x} = 1{,}92 \\
+\text{LCI} &= \bar{x} - 3 \cdot \hat{\sigma} = 1{,}92 - 3 \cdot 0{,}3457 = 0{,}8829
+\end{aligned}
+$$
+
+$$
+\begin{aligned}
+\text{LCS} &= D_4 \cdot \overline{MR} = 3{,}2677 \cdot 0{,}39 = 1{,}2744 \\
+\text{LC}  &= \overline{MR} = 0{,}39 \\
+\text{LCI} &= 0 \quad \text{(por convención)}
+\end{aligned}
+$$
+
+```{r}
+#| label: graf-individuales1
+#| fig-cap: "Carta de Control de Valores Individuales (sin punto 15)"
+#| echo: true
+#| message: false
+#| warning: false
+
+library(highcharter)
+
+brix <- c(
+  2.0, 2.4, 2.2, 1.4, 2.3, 1.8, 1.5, 1.5, 2.1, 2.0,
+  1.6, 2.2, 1.9, 2.4, 3.3, 2.1, 2.1, 1.8, 1.6, 2.1,
+  1.2, 1.8, 2.0, 2.4, 1.9, 2.1, 2.4, 1.7, 2.1, 1.7,
+  2.4, 2.3, 1.6, 2.1, 1.8, 1.3, 1.6, 1.7, 1.6, 2.1
+)
+
+# Excluir el punto 15
+brix_sin_15 <- brix[-15]
+
+# Nuevos límites calculados según el ejemplo
+LC <- 1.92
+sigma_hat <- 0.35
+LCS <- LC + 3 * sigma_hat  # 2.97
+LCI <- LC - 3 * sigma_hat  # 0.87
+
+# Subgrupos sin el punto 15
+subgrupos <- seq_along(brix_sin_15)
+
+highchart() %>%
+  hc_title(text = "Carta de Control de Valores Individuales (sin punto 15)") %>%
+  hc_xAxis(title = list(text = "Lote"), categories = subgrupos) %>%
+  hc_yAxis(
+    title = list(text = "Brix"),
+    min = 0.5,
+    max = 3.5,
+    plotLines = list(
+      list(value = LCS, color = "#E74C3C", width = 2, dashStyle = "ShortDash", label = list(text = "LCS")),
+      list(value = LC, color = "#2C3E50", width = 2, dashStyle = "ShortDash", label = list(text = "LC")),
+      list(value = LCI, color = "#3498DB", width = 2, dashStyle = "ShortDash", label = list(text = "LCI"))
+    )
+  ) %>%
+  hc_add_series(name = "Brix", data = brix_sin_15, type = "line", color = "#9B59B6", marker = list(enabled = TRUE)) %>%
+  hc_tooltip(valueDecimals = 2)
+```
+
+```{r}
+#| label: graf-rangos1
+#| fig-cap: "Carta de Control de Rangos Móviles (excluyendo lote 15)"
+#| echo: true
+#| message: false
+#| warning: false
+
+library(highcharter)
+
+# Vector brix original
+brix <- c(
+  2.0, 2.4, 2.2, 1.4, 2.3, 1.8, 1.5, 1.5, 2.1, 2.0,
+  1.6, 2.2, 1.9, 2.4, 3.3, 2.1, 2.1, 1.8, 1.6, 2.1,
+  1.2, 1.8, 2.0, 2.4, 1.9, 2.1, 2.4, 1.7, 2.1, 1.7,
+  2.4, 2.3, 1.6, 2.1, 1.8, 1.3, 1.6, 1.7, 1.6, 2.1
+)
+
+# Vector brix sin el punto 15
+brix_sin15 <- brix[-15]
+
+# Calcular nuevos rangos móviles
+rangos <- abs(diff(brix_sin15))
+
+# Nuevos límites
+MR_bar <- mean(rangos)
+D4 <- 3.267
+LC <- MR_bar
+LCS <- D4 * MR_bar
+LCI <- 0
+
+# Ajustar categorías de lotes para rangos
+# El rango entre lote i y i+1 corresponde al lote i+1 en el gráfico,
+# como el punto 15 fue eliminado, quitamos su índice (pos 14 en rangos)
+categorias <- 2:40
+categorias_sin15 <- categorias[-14]
+
+# Gráfico
+highchart() %>%
+  hc_title(text = "Carta de Control de Rangos Móviles (excluyendo lote 15)") %>%
+  hc_xAxis(title = list(text = "Lote"), categories = categorias_sin15) %>%
+  hc_yAxis(
+    title = list(text = "Rango Móvil"),
+    min = 0,
+    max = LCS * 1.1,
+    plotLines = list(
+      list(value = LCS, color = "#E74C3C", width = 2, dashStyle = "ShortDash", label = list(text = "LCS")),
+      list(value = LC, color = "#2C3E50", width = 2, dashStyle = "ShortDash", label = list(text = "LC")),
+      list(value = LCI, color = "#3498DB", width = 2, dashStyle = "ShortDash", label = list(text = "LCI"))
+    )
+  ) %>%
+  hc_add_series(name = "Rango", data = rangos, type = "line", color = "#1ABC9C", marker = list(enabled = TRUE)) %>%
+  hc_tooltip(valueDecimals = 2)
+```
+
+**Estado del proceso**
+
+Con la información anterior, estamos en posibilidades de tener una mejor idea del estado del proceso en cuanto a **estabilidad y capacidad**. Para ello, primero calculamos el índice de inestabilidad:
+
+$$
+S_t = \frac{\text{Número de puntos especiales}}{\text{Número total de puntos}} \times 100 = \frac{1}{40} \times 100 = 2{,}5\%
+$$
+
+Este valor se considera relativamente bajo y, por lo tanto, la **estabilidad del proceso de molienda** se puede considerar, de forma moderada, **estable**.
+
+Por otro lado, en cuanto a la **capacidad** del proceso, se calcula el índice de capacidad potencial \( C_{ps} \) como:
+
+$$
+C_{ps} = \frac{\text{ES} - \bar{X}}{3\sigma} = \frac{3{,}5 - 1{,}92}{3(0{,}39)} = 1{,}51
+$$
+La capacidad del proceso en cuanto al **Brix residual** es satisfactoria, ya que el índice \( C_{ps} = C_{pk} = 1{,}51 \) es mayor que 1{,}25. 
+
+En resumen, el proceso es **moderadamente estable y capaz**, por lo tanto, se clasifica como un **proceso de tipo A**.
+
+**Conclusión**
+
+El proceso de molienda para la producción de tequila se encuentra bajo control estadístico, ya que todos los puntos en las cartas de control de valores individuales y de rangos móviles (excluyendo el lote 15) están dentro de los límites establecidos. Además, el grado brix residual de todos los lotes está por debajo del valor máximo tolerado (3.5%), lo que indica que el proceso es estable, eficiente y cumple con los estándares de calidad requeridos.
+
+# Apendice
+
+```{r}
+#| label: tbl-factores
+#| tbl-cap:  "Factores para construir diagramas de control para variables"
+
+factores <- data.table::data.table(
+  check.names = FALSE,
+  n = c(
+    2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L, 12L, 13L, 14L,
+    15L, 16L, 17L, 18L, 19L, 20L, 21L, 22L, 23L, 24L, 25L
+  ),
+  A = 3 / sqrt(2:25),
+  A2 = 3 / (sqrt(2:25) * sapply(2:25, SixSigma::ss.cc.getd2)),
+  A3 = 3 / (sqrt(2:25) * sapply(2:25, SixSigma::ss.cc.getc4)),
+  c4 = sapply(2:25, SixSigma::ss.cc.getc4),
+  `1/c4` = 1 / sapply(2:25, SixSigma::ss.cc.getc4),
+  B3 = ifelse(
+    1 - 3 * (sqrt(1 - (sapply(2:25, SixSigma::ss.cc.getc4))^2) / sapply(2:25, SixSigma::ss.cc.getc4)) < 0, 0,
+    1 - 3 * (sqrt(1 - (sapply(2:25, SixSigma::ss.cc.getc4))^2) / sapply(2:25, SixSigma::ss.cc.getc4))
+  ),
+  B4 = 1 + 3 * (sqrt(1 - (sapply(2:25, SixSigma::ss.cc.getc4))^2) / sapply(2:25, SixSigma::ss.cc.getc4)),
+  B5 = ifelse(
+    sapply(2:25, SixSigma::ss.cc.getc4) - 3 * sqrt(1 - (sapply(2:25, SixSigma::ss.cc.getc4))^2) < 0, 0,
+    sapply(2:25, SixSigma::ss.cc.getc4) - 3 * sqrt(1 - (sapply(2:25, SixSigma::ss.cc.getc4))^2)
+  ),
+  B6 = sapply(2:25, SixSigma::ss.cc.getc4) + 3 * sqrt(1 - (sapply(2:25, SixSigma::ss.cc.getc4))^2),
+  d2 = sapply(2:25, SixSigma::ss.cc.getd2),
+  `1/d2` = 1 / sapply(2:25, SixSigma::ss.cc.getd2),
+  d3 = sapply(2:25, SixSigma::ss.cc.getd3),
+  D1 = ifelse(
+    sapply(2:25, SixSigma::ss.cc.getd2) - 3 * sapply(2:25, SixSigma::ss.cc.getd3) < 0, 0, sapply(2:25, SixSigma::ss.cc.getd2) - 3 * sapply(2:25, SixSigma::ss.cc.getd3)
+  ),
+  D2 = sapply(2:25, SixSigma::ss.cc.getd2) + 3 * sapply(2:25, SixSigma::ss.cc.getd3),
+  D3 = ifelse(
+    1 - 3 * sapply(2:25, SixSigma::ss.cc.getd3) / sapply(2:25, SixSigma::ss.cc.getd2) < 0, 0, 1 - 3 * sapply(2:25, SixSigma::ss.cc.getd3) / sapply(2:25, SixSigma::ss.cc.getd2)
+  ),
+  D4 = 1 + 3 * sapply(2:25, SixSigma::ss.cc.getd3) / sapply(2:25, SixSigma::ss.cc.getd2)
+)
+
+# knitr::kable(
+#   factores,
+#   # booktabs = TRUE,
+#   format = "markdown",
+#   # table.attr = 'data-quarto-disable-processing="true"',
+#   col.names = c(
+#     "$n$", "$A$", "$A_2$", "$A_3$", "$c_4$", "$1/c_4$",
+#     "$B_3$", "$B_4$", "$B_5$", "$B_6$", "$d_2$", "$1/d_2$",
+#     "$d_3$", "$D_1$", "$D_2$", "$D_3$", "$D_4$"
+#   ),
+#   digits = 4,
+#   format.args = list(decimal.mark = ",", big.mark = "."),
+#   escape = FALSE
+# )
+
+factores |> 
+  gt::gt() |> 
+  gt::cols_label(
+    n = gt::html(
+      "<span style='font-size: 14px;'>\\( n \\)</span>"
+    ),
+    A = gt::html("<span style='font-size: 14px;'>\\( A \\)</span>"),
+    A2 = gt::html(
+      "<span style='font-size: 14px;'>\\( A_{2} \\)</span>"
+    ),
+    A3 = gt::html(
+      "<span style='font-size: 14px;'>\\( A_{3} \\)</span>"
+    ),
+    c4 = gt::html(
+      "<span style='font-size: 14px;'>\\( c_{4} \\)</span>"
+    ),
+    `1/c4` = gt::html(
+      "<span style='font-size: 14px;'>\\( 1/c_{4} \\)</span>"
+    ),
+    B3 = gt::html(
+      "<span style='font-size: 14px;'>\\( B_{3} \\)</span>"
+    ),
+    B4 = gt::html(
+      "<span style='font-size: 14px;'>\\( B_{4} \\)</span>"
+    ),
+    B5 = gt::html(
+      "<span style='font-size: 14px;'>\\( B_{5} \\)</span>"
+    ),
+    B6 = gt::html(
+      "<span style='font-size: 14px;'>\\( B_{6} \\)</span>"
+    ),
+    d2 = gt::html(
+      "<span style='font-size: 14px;'>\\( d_{2} \\)</span>"
+    ),
+    `1/d2` = gt::html(
+      "<span style='font-size: 14px;'>\\( 1/d_{2} \\)</span>"
+    ),
+    d3 = gt::html(
+      "<span style='font-size: 14px;'>\\( d_{3} \\)</span>"
+    ),
+    D1 = gt::html(
+      "<span style='font-size: 14px;'>\\( D_{1} \\)</span>"
+    ),
+    D2 = gt::html(
+      "<span style='font-size: 14px;'>\\( D_{2} \\)</span>"
+    ),
+    D3 = gt::html(
+      "<span style='font-size: 14px;'>\\( D_{3} \\)</span>"
+    ),
+    D4 = gt::html(
+      "<span style='font-size: 14px;'>\\( D_{4} \\)</span>"
+    ),
+  ) |> 
+  gt::tab_spanner(
+    label = gt::html(
+      "<span style='font-size: 14px;'>\\( \\text{Observaciones} \\)</span>"
+    ),
+    id = "observaciones", # Identificador único
+    columns = c(n)
+  ) |> 
+  gt::tab_spanner(
+    label =  gt::html(
+      "<span style='font-size: 14px;'>\\( \\text{Factores  para los límites de control} \\)</span>"
+    ),
+    id = "factores_limites-control_1", # Identificador único
+    columns = c(A, A2, A3)
+  ) |> 
+  gt::tab_spanner(
+    label =  gt::html(
+      "<span style='font-size: 14px;'>\\( \\text{Factores  para la línea central} \\)</span>"
+    ),
+    id = "factores_linea_centasl_1", # Identificador
+    columns = c(c4, `1/c4`)
+  ) |> 
+  gt::tab_spanner(
+    label =  gt::html(
+      "<span style='font-size: 14px;'>\\( \\text{Factores  para los límites de control} \\)</span>"
+    ),
+    id = "factores_limites-control_2", # Identificador único
+    columns = c(B3, B4, B5, B6)
+  ) |> 
+  gt::tab_spanner(
+    label =  gt::html(
+      "<span style='font-size: 14px;'>\\( \\text{Factores  para la línea central} \\)</span>"
+    ),
+    id = "factores_linea_centasl_2", # Identificador
+    columns = c(d2, `1/d2`)
+  ) |>
+  gt::tab_spanner(
+    label =  gt::html(
+      "<span style='font-size: 14px;'>\\( \\text{Factores  para los límites de control} \\)</span>"
+    ),
+    id = "factores_limites-control_3", # Identificador único
+    columns = c(d3, D1, D2, D3, D4)
+  ) |> 
+  gt::tab_spanner(
+    label =  gt::html(
+      "<span style='font-size: 14px;'>\\( \\text{Diagrama de control } \\bar{x} \\)</span>"
+    ),
+    id = "factores_limites_control_xbarra", # Identificador único
+    columns = c(A, A2, A3, c4, `1/c4`)
+  ) |> 
+  gt::tab_spanner(
+    label =  gt::html(
+      "<span style='font-size: 14px;'>\\( \\text{Diagrama de control } S \\)</span>"
+    ),
+    id = "factores_limites_control_S", # Identificador único
+    columns = c(B3, B4, B5, B6)
+  ) |>
+  gt::tab_spanner(
+    label =  gt::html(
+      "<span style='font-size: 14px;'>\\( \\text{Diagrama de control } R \\)</span>"
+    ),
+    id = "factores_limites_control_R", # Identificador único
+    columns = c(d2, `1/d2`, d3, D1, D2, D3, D4)
+  ) |>
+  gt::fmt_number(
+    decimals = 4, sep_mark = ".", dec_mark = ",",
+    drop_trailing_zeros = TRUE
+  ) |> 
+  gt::opt_align_table_header(align = "left") |>
+  gt::cols_align(
+    align = "center",
+    columns = everything()
+  ) |> 
+  gt::tab_style(
+    style = list(
+      gt::cell_text(weight = "bold")
+    ),
+    locations = gt::cells_body(
+      columns = n
+    )
+  ) # |>
+  # gt::opt_interactive(
+  #   use_filters = TRUE,
+  #   use_compact_mode = TRUE,
+  #   use_text_wrapping = FALSE
+  # ) |> 
+  # gt::opt_row_striping(row_striping = TRUE)
+```
